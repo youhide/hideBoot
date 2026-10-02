@@ -1,0 +1,12 @@
+/target/
+**/*.rs.bk
+*.efi
+/esp/
+
+CLAUDE.local.md
+.claude/settings.local.json
+
+.DS_Store
+*.swp
+.idea/
+.vscode/

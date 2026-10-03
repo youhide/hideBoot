@@ -16,29 +16,36 @@ Nothing, normally: it boots the newest entry with tries left, and the screen
 goes from the firmware to the kernel. Hold a key as it starts, and it shows
 the menu:
 
-![hideBoot's menu: an entry being tried, a good one, one that failed to boot, and the recovery system](docs/images/menu.png)
+![hideBoot's menu at 1920x1080: an entry being tried with two tries left, a good one, one that failed to start, and the recovery system](docs/images/menu.png)
 
-The entries are the file names in `\EFI\Linux\`, newest first, with their
-state read from the boot counter: *being tried* has attempts left, *failed
-to boot* has none and comes only when nothing else will start, and an entry
-with no note has been marked good by the OS. Recovery images, from
+The entries are the file names in `\EFI\Linux\`, newest first, with what
+the boot counter says: *being tried* with the tries left, *failed to start*
+when none are left — such an entry comes only when nothing else will — and
+nothing for an entry the OS has marked good. Recovery images, from
 `\EFI\Recovery\`, come last:
 
-![The same menu, with the recovery system chosen](docs/images/menu-recovery.png)
+![The same menu with the recovery system chosen](docs/images/menu-recovery.png)
 
-Up and Down, or the entry's number, then Enter. These pictures are QEMU's
-screen, taken by hideOS's `cargo xtask hideboot-screenshot`, on a disk
-prepared for them: the three entries are three names for one installed
-image.
+Up and Down, or the entry's number, then Enter.
 
-Build it with a Rust that has the UEFI target:
+**At the display's own resolution.** The menu is drawn on the screen
+directly, in hideOS's colours, with Noto Sans Mono rasterised ahead of time
+— no font engine, no floating point — sized to the screen, from 800 lines
+to 4K. The resolution is the display's native one, read from its EDID when
+the firmware offers it, and otherwise the mode the firmware chose, which
+on a real machine is the panel's. Never simply the largest mode the
+firmware lists: firmware lists modes no display has. The firmware's mode is
+put back before the kernel starts, so Linux inherits what it would have
+without hideBoot. At 2560x1440:
 
-```sh
-cargo build --release -p hideboot --target x86_64-unknown-uefi
-```
+![The menu at 2560x1440](docs/images/menu-1440p.png)
 
-`crates/hideboot-core` holds the decisions — parsing names, the boot order,
-the counter after an attempt — and is tested on the host with `cargo test`.
+Without graphics — a serial console — the menu is text, and it is written
+as text under the picture too, once, where logs and tests read it.
+
+These pictures are QEMU's screen, taken by hideOS's `cargo xtask
+hideboot-screenshot --display WxH`, on a disk prepared for them: the three
+entries are three names for one installed image.
 
 ## What it does
 
@@ -47,7 +54,9 @@ the counter after an attempt — and is tested on the host with `cargo test`.
 3. Skips any whose boot counter is exhausted.
 4. Decrements the counter of the one it picks — by renaming the file — and
    boots it.
-5. Shows a menu when a key is held at startup, and never otherwise.
+5. Shows a menu when a key is held at startup, and never otherwise: drawn
+   at the display's resolution where there is graphics output, text
+   otherwise.
 6. Sets `LoaderBootCountPath` and `LoaderEntrySelected`, systemd-boot's
    variables, so the OS knows which file to rename when it marks the boot
    good.
@@ -56,7 +65,7 @@ the counter after an attempt — and is tested on the host with `cargo test`.
    will start. A recovery image is never counted and never the default.
 
 That is all. No filesystem drivers beyond FAT, no configuration language, no
-theming, no kernel loading other than a signed UKI through the firmware's own
+themes to choose, no kernel loading other than a signed UKI through the firmware's own
 `LoadImage`.
 
 ## The contract

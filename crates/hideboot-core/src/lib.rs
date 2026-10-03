@@ -145,6 +145,35 @@ pub fn entries<'a>(names: impl IntoIterator<Item = &'a str>) -> Vec<Entry> {
     names.into_iter().filter_map(Entry::parse).collect()
 }
 
+/// The display's native resolution, from its EDID: the first detailed
+/// timing, which EDID 1.3 and later make the preferred one. `None` for
+/// anything that is not an EDID with one.
+pub fn edid_native_resolution(edid: &[u8]) -> Option<(usize, usize)> {
+    const HEADER: [u8; 8] = [0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00];
+    if edid.get(..8)? != HEADER {
+        return None;
+    }
+    let timing = edid.get(54..72)?;
+    let byte = |i: usize| timing.get(i).copied().map(usize::from);
+    // A pixel clock of zero marks a display descriptor, not a timing.
+    if byte(0)? == 0 && byte(1)? == 0 {
+        return None;
+    }
+    let width = byte(2)? | (byte(4)? >> 4) << 8;
+    let height = byte(5)? | (byte(7)? >> 4) << 8;
+    (width > 0 && height > 0).then_some((width, height))
+}
+
+/// Which of `modes` to draw the menu in: the display's native resolution
+/// when it is among them; otherwise `None`, the mode the firmware chose.
+/// Never simply the largest: firmware lists modes no display has — QEMU's
+/// lists 4096x2160 whatever it shows on — and a mode above the panel's is
+/// a blank or scaled screen.
+pub fn choose_mode(modes: &[(usize, usize)], native: Option<(usize, usize)>) -> Option<usize> {
+    let native = native?;
+    modes.iter().position(|&mode| mode == native)
+}
+
 /// Splits a string into runs of ASCII digits and runs of everything else.
 struct Runs<'a> {
     rest: &'a str,
@@ -255,6 +284,46 @@ mod tests {
                 "hideos-minimal-11-cccc+0-3.efi",
             ]
         );
+    }
+
+    /// A real EDID's first 72 bytes: a 1920x1080 panel.
+    fn edid_1080p() -> Vec<u8> {
+        let mut edid = vec![0u8; 128];
+        edid[..8].copy_from_slice(&[0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00]);
+        // 148.5 MHz; 1920 active, 280 blank; 1080 active, 45 blank.
+        edid[54..62].copy_from_slice(&[0x02, 0x3a, 0x80, 0x18, 0x71, 0x38, 0x2d, 0x40]);
+        edid
+    }
+
+    #[test]
+    fn the_native_resolution_is_the_first_timing() {
+        assert_eq!(edid_native_resolution(&edid_1080p()), Some((1920, 1080)));
+        let mut uhd = edid_1080p();
+        // 3840 = 0xf00, 2160 = 0x870.
+        uhd[56] = 0x00;
+        uhd[58] = 0xf0;
+        uhd[59] = 0x70;
+        uhd[61] = 0x80;
+        assert_eq!(edid_native_resolution(&uhd), Some((3840, 2160)));
+    }
+
+    #[test]
+    fn what_is_not_an_edid_has_no_resolution() {
+        assert_eq!(edid_native_resolution(&[]), None);
+        assert_eq!(edid_native_resolution(&[0u8; 128]), None);
+        let mut descriptor = edid_1080p();
+        descriptor[54] = 0;
+        descriptor[55] = 0;
+        assert_eq!(edid_native_resolution(&descriptor), None);
+        assert_eq!(edid_native_resolution(&edid_1080p()[..60]), None);
+    }
+
+    #[test]
+    fn the_mode_is_the_native_one_or_the_firmwares() {
+        let modes = [(1280, 800), (1920, 1080), (4096, 2160)];
+        assert_eq!(choose_mode(&modes, Some((1920, 1080))), Some(1));
+        assert_eq!(choose_mode(&modes, Some((2560, 1440))), None);
+        assert_eq!(choose_mode(&modes, None), None);
     }
 
     #[test]

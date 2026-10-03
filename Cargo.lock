@@ -22,21 +22,28 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "hideboot"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "hideboot-core",
+ "noto-sans-mono-bitmap",
  "uefi",
 ]
 
 [[package]]
 name = "hideboot-core"
-version = "0.1.0"
+version = "0.2.0"
 
 [[package]]
 name = "log"
 version = "0.4.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9f8bd3e56ce4dfc153cf470fffbfa98c7620958b312ca5c3a4b8d5181fd13c6"
+
+[[package]]
+name = "noto-sans-mono-bitmap"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f102c477fd4ec864c149803bf606ecc23bc9329602ec0f99073a728abf454abc"
 
 [[package]]
 name = "proc-macro2"

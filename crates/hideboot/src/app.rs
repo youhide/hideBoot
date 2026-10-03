@@ -11,6 +11,8 @@ use core::fmt;
 use core::time::Duration;
 
 use hideboot_core::{Entry, order};
+
+use crate::screen::{Row, Screen};
 use uefi::boot::{self, LoadImageSource};
 use uefi::data_types::Align;
 use uefi::proto::console::text::{Key, ScanCode};
@@ -74,7 +76,7 @@ fn run() -> Result<(), Error> {
     if candidates.is_empty() {
         return Err(Error::NoEntries);
     }
-    set_variable("LoaderInfo", "hideBoot 0.1");
+    set_variable("LoaderInfo", concat!("hideBoot ", env!("CARGO_PKG_VERSION")));
 
     // The chosen entry first, then the rest in order: an image the firmware
     // refuses — a bad signature, a corrupt file — is passed over, as a
@@ -264,30 +266,36 @@ fn key_held() -> bool {
 
 /// The entries, newest first, and a choice: a number, or the arrows and
 /// Enter. Returns the index to boot from.
+///
+/// Drawn on the screen where there is graphics output (see screen.rs),
+/// and always written as text too: on a serial console, or under the
+/// picture, where it is what tests and logs read.
 fn menu(entries: &[(&str, Entry)]) -> usize {
+    let rows: Vec<Row<'_>> = entries
+        .iter()
+        .map(|(dir, entry)| Row {
+            entry,
+            recovery: *dir == RECOVERY_DIR,
+        })
+        .collect();
+    let mut screen = Screen::open();
+    uefi::system::with_stdout(|out| {
+        let _ = out.enable_cursor(false);
+    });
     let mut selected = 0usize;
-    loop {
-        // Drawn whole each time, on a clear screen: the firmware's logo and
-        // messages, and the last drawing, would otherwise stay under it.
-        uefi::system::with_stdout(|out| {
-            let _ = out.clear();
-        });
-        println!("hideBoot");
-        println!();
-        for (i, (dir, entry)) in entries.iter().enumerate() {
-            let marker = if i == selected { ">" } else { " " };
-            let state = match entry.counter {
-                _ if *dir == RECOVERY_DIR => "  (recovery)",
-                None => "",
-                Some(c) if c.left == 0 => "  (failed to boot)",
-                Some(_) => "  (being tried)",
-            };
-            println!("{marker} {}  {}{state}", i + 1, entry.id);
+    let mut printed = false;
+    let choice = loop {
+        // Under a picture, the text is written once, for the serial port
+        // and logs: written again at each key, it would flash under it.
+        if !printed || screen.is_none() {
+            print_menu(entries, selected);
+            printed = true;
         }
-        println!();
-        println!("Up and Down to choose, Enter to boot.");
+        if let Some(screen) = screen.as_mut() {
+            screen.draw(&rows, selected);
+        }
         let Some(key) = wait_key() else {
-            return selected;
+            break selected;
         };
         match key {
             Key::Special(ScanCode::UP) => selected = selected.saturating_sub(1),
@@ -297,18 +305,44 @@ fn menu(entries: &[(&str, Entry)]) -> usize {
             Key::Printable(c) => {
                 let c = char::from(c);
                 if c == '\r' || c == '\n' {
-                    return selected;
+                    break selected;
                 }
                 if let Some(n) = c.to_digit(10) {
                     let n = n as usize;
                     if (1..=entries.len()).contains(&n) {
-                        return n - 1;
+                        break n - 1;
                     }
                 }
             }
             _ => {}
         }
+    };
+    if let Some(screen) = screen {
+        screen.close();
     }
+    choice
+}
+
+/// The menu as text, on a clear console: the firmware's logo and
+/// messages, and the last drawing, would otherwise stay under it.
+fn print_menu(entries: &[(&str, Entry)], selected: usize) {
+    uefi::system::with_stdout(|out| {
+        let _ = out.clear();
+    });
+    println!("hideBoot");
+    println!();
+    for (i, (dir, entry)) in entries.iter().enumerate() {
+        let marker = if i == selected { ">" } else { " " };
+        let state = match entry.counter {
+            _ if *dir == RECOVERY_DIR => "  (recovery)",
+            None => "",
+            Some(c) if c.left == 0 => "  (failed to boot)",
+            Some(_) => "  (being tried)",
+        };
+        println!("{marker} {}  {}{state}", i + 1, entry.id);
+    }
+    println!();
+    println!("Up and Down to choose, Enter to boot.");
 }
 
 fn wait_key() -> Option<Key> {

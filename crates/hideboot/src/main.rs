@@ -21,6 +21,8 @@
 #[cfg(target_os = "uefi")]
 mod app;
 #[cfg(target_os = "uefi")]
+mod screen;
+#[cfg(target_os = "uefi")]
 mod sys;
 
 #[cfg(not(target_os = "uefi"))]

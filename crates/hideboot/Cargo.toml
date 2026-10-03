@@ -13,3 +13,14 @@ hideboot-core = { path = "../hideboot-core" }
 
 [target.'cfg(target_os = "uefi")'.dependencies]
 uefi = { version = "0.41", features = ["alloc", "global_allocator", "panic_handler"] }
+# The menu's font: Noto Sans Mono, rasterised ahead of time, so no font
+# engine and no floating point at boot. Four heights, two weights, Latin.
+noto-sans-mono-bitmap = { version = "0.3", default-features = false, features = [
+    "regular",
+    "bold",
+    "size_16",
+    "size_20",
+    "size_24",
+    "size_32",
+    "unicode-basic-latin",
+] }

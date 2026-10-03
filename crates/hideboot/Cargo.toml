@@ -1,0 +1,15 @@
+[package]
+name = "hideboot"
+version.workspace = true
+description = "UEFI boot manager with boot counting and automatic fallback"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[dependencies]
+hideboot-core = { path = "../hideboot-core" }
+
+[target.'cfg(target_os = "uefi")'.dependencies]
+uefi = { version = "0.41", features = ["alloc", "global_allocator", "panic_handler"] }

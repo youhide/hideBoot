@@ -1,0 +1,13 @@
+[package]
+name = "hideboot-core"
+version.workspace = true
+description = "hideBoot's decisions: which entry boots, and how its counter changes"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+# No dependencies, and no_std with alloc: the UEFI application links it, and
+# the host tests it.
+[dependencies]

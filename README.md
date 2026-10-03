@@ -3,8 +3,19 @@
 A UEFI boot manager for Linux, written in Rust, with boot counting and
 automatic fallback.
 
-**Not started.** It is scheduled for hideOS milestone H7; until then hideOS
-boots with `systemd-boot`, which follows the same on-disk convention.
+**Works, in QEMU.** It boots hideOS's UKIs under OVMF, counts attempts by
+renaming in place, and passes over an image the firmware refuses. hideOS
+replaces `systemd-boot` with it in milestone H7; both follow the same
+on-disk convention.
+
+Build it with a Rust that has the UEFI target:
+
+```sh
+cargo build --release -p hideboot --target x86_64-unknown-uefi
+```
+
+`crates/hideboot-core` holds the decisions — parsing names, the boot order,
+the counter after an attempt — and is tested on the host with `cargo test`.
 
 ## What it does
 
@@ -14,6 +25,9 @@ boots with `systemd-boot`, which follows the same on-disk convention.
 4. Decrements the counter of the one it picks — by renaming the file — and
    boots it.
 5. Shows a menu when a key is held at startup, and never otherwise.
+6. Sets `LoaderBootCountPath` and `LoaderEntrySelected`, systemd-boot's
+   variables, so the OS knows which file to rename when it marks the boot
+   good.
 
 That is all. No filesystem drivers beyond FAT, no configuration language, no
 theming, no kernel loading other than a signed UKI through the firmware's own

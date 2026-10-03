@@ -267,7 +267,11 @@ fn key_held() -> bool {
 fn menu(entries: &[(&str, Entry)]) -> usize {
     let mut selected = 0usize;
     loop {
-        println!();
+        // Drawn whole each time, on a clear screen: the firmware's logo and
+        // messages, and the last drawing, would otherwise stay under it.
+        uefi::system::with_stdout(|out| {
+            let _ = out.clear();
+        });
         println!("hideBoot");
         println!();
         for (i, (dir, entry)) in entries.iter().enumerate() {

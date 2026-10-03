@@ -3,10 +3,33 @@
 A UEFI boot manager for Linux, written in Rust, with boot counting and
 automatic fallback.
 
-**Works, in QEMU.** It boots hideOS's UKIs under OVMF, counts attempts by
-renaming in place, and passes over an image the firmware refuses. hideOS
-replaces `systemd-boot` with it in milestone H7; both follow the same
-on-disk convention.
+**Works, in QEMU.** It is the boot manager hideOS installs. hideOS's tests
+boot through it under OVMF, Secure Boot included: an update that fails,
+hangs or panics three times falls back to the previous system, an image the
+firmware refuses is passed over, and the recovery system starts from the
+menu. It follows `systemd-boot`'s on-disk convention, so either boots the
+same ESP.
+
+## What it looks like
+
+Nothing, normally: it boots the newest entry with tries left, and the screen
+goes from the firmware to the kernel. Hold a key as it starts, and it shows
+the menu:
+
+![hideBoot's menu: an entry being tried, a good one, one that failed to boot, and the recovery system](docs/images/menu.png)
+
+The entries are the file names in `\EFI\Linux\`, newest first, with their
+state read from the boot counter: *being tried* has attempts left, *failed
+to boot* has none and comes only when nothing else will start, and an entry
+with no note has been marked good by the OS. Recovery images, from
+`\EFI\Recovery\`, come last:
+
+![The same menu, with the recovery system chosen](docs/images/menu-recovery.png)
+
+Up and Down, or the entry's number, then Enter. These pictures are QEMU's
+screen, taken by hideOS's `cargo xtask hideboot-screenshot`, on a disk
+prepared for them: the three entries are three names for one installed
+image.
 
 Build it with a Rust that has the UEFI target:
 

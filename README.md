@@ -28,6 +28,9 @@ the counter after an attempt — and is tested on the host with `cargo test`.
 6. Sets `LoaderBootCountPath` and `LoaderEntrySelected`, systemd-boot's
    variables, so the OS knows which file to rename when it marks the boot
    good.
+7. Lists recovery images in `\EFI\Recovery\` in the menu, after the
+   entries, and boots one by itself only when no entry in `\EFI\Linux\`
+   will start. A recovery image is never counted and never the default.
 
 That is all. No filesystem drivers beyond FAT, no configuration language, no
 theming, no kernel loading other than a signed UKI through the firmware's own
